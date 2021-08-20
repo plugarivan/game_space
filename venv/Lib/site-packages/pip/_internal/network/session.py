@@ -19,8 +19,6 @@ import logging
 import mimetypes
 import os
 import platform
-import shutil
-import subprocess
 import sys
 import urllib.parse
 import warnings
@@ -55,7 +53,7 @@ SecureOrigin = Tuple[str, str, Optional[Union[int, str]]]
 warnings.filterwarnings("ignore", category=InsecureRequestWarning)
 
 
-SECURE_ORIGINS: List[SecureOrigin] = [
+SECURE_ORIGINS = [
     # protocol, hostname, port
     # Taken from Chrome's list of secure origins (See: http://bit.ly/1qrySKC)
     ("https", "*", "*"),
@@ -65,7 +63,7 @@ SECURE_ORIGINS: List[SecureOrigin] = [
     ("file", "*", None),
     # ssh is always secure.
     ("ssh", "*", "*"),
-]
+]  # type: List[SecureOrigin]
 
 
 # These are environment variables present when running under various
@@ -77,17 +75,18 @@ SECURE_ORIGINS: List[SecureOrigin] = [
 # For more background, see: https://github.com/pypa/pip/issues/5499
 CI_ENVIRONMENT_VARIABLES = (
     # Azure Pipelines
-    "BUILD_BUILDID",
+    'BUILD_BUILDID',
     # Jenkins
-    "BUILD_ID",
+    'BUILD_ID',
     # AppVeyor, CircleCI, Codeship, Gitlab CI, Shippable, Travis CI
-    "CI",
+    'CI',
     # Explicit environment variable.
-    "PIP_IS_CI",
+    'PIP_IS_CI',
 )
 
 
-def looks_like_ci() -> bool:
+def looks_like_ci():
+    # type: () -> bool
     """
     Return whether it looks like pip is running under CI.
     """
@@ -97,31 +96,32 @@ def looks_like_ci() -> bool:
     return any(name in os.environ for name in CI_ENVIRONMENT_VARIABLES)
 
 
-def user_agent() -> str:
+def user_agent():
+    # type: () -> str
     """
     Return a string representing the user agent.
     """
-    data: Dict[str, Any] = {
+    data = {
         "installer": {"name": "pip", "version": __version__},
         "python": platform.python_version(),
         "implementation": {
             "name": platform.python_implementation(),
         },
-    }
+    }  # type: Dict[str, Any]
 
-    if data["implementation"]["name"] == "CPython":
+    if data["implementation"]["name"] == 'CPython':
         data["implementation"]["version"] = platform.python_version()
-    elif data["implementation"]["name"] == "PyPy":
+    elif data["implementation"]["name"] == 'PyPy':
         pypy_version_info = sys.pypy_version_info  # type: ignore
-        if pypy_version_info.releaselevel == "final":
+        if pypy_version_info.releaselevel == 'final':
             pypy_version_info = pypy_version_info[:3]
         data["implementation"]["version"] = ".".join(
             [str(x) for x in pypy_version_info]
         )
-    elif data["implementation"]["name"] == "Jython":
+    elif data["implementation"]["name"] == 'Jython':
         # Complete Guess
         data["implementation"]["version"] = platform.python_version()
-    elif data["implementation"]["name"] == "IronPython":
+    elif data["implementation"]["name"] == 'IronPython':
         # Complete Guess
         data["implementation"]["version"] = platform.python_version()
 
@@ -130,18 +130,14 @@ def user_agent() -> str:
 
         # https://github.com/nir0s/distro/pull/269
         linux_distribution = distro.linux_distribution()  # type: ignore
-        distro_infos = dict(
-            filter(
-                lambda x: x[1],
-                zip(["name", "version", "id"], linux_distribution),
-            )
-        )
-        libc = dict(
-            filter(
-                lambda x: x[1],
-                zip(["lib", "version"], libc_ver()),
-            )
-        )
+        distro_infos = dict(filter(
+            lambda x: x[1],
+            zip(["name", "version", "id"], linux_distribution),
+        ))
+        libc = dict(filter(
+            lambda x: x[1],
+            zip(["lib", "version"], libc_ver()),
+        ))
         if libc:
             distro_infos["libc"] = libc
         if distro_infos:
@@ -161,27 +157,11 @@ def user_agent() -> str:
 
     if has_tls():
         import _ssl as ssl
-
         data["openssl_version"] = ssl.OPENSSL_VERSION
 
     setuptools_dist = get_default_environment().get_distribution("setuptools")
     if setuptools_dist is not None:
         data["setuptools_version"] = str(setuptools_dist.version)
-
-    if shutil.which("rustc") is not None:
-        # If for any reason `rustc --version` fails, silently ignore it
-        try:
-            rustc_output = subprocess.check_output(
-                ["rustc", "--version"], stderr=subprocess.STDOUT, timeout=0.5
-            )
-        except Exception:
-            pass
-        else:
-            if rustc_output.startswith(b"rustc "):
-                # The format of `rustc --version` is:
-                # `b'rustc 1.52.1 (9bc8c42bb 2021-05-09)\n'`
-                # We extract just the middle (1.52.1) part
-                data["rustc_version"] = rustc_output.split(b" ")[1].decode()
 
     # Use None rather than False so as not to give the impression that
     # pip knows it is not being run under CI.  Rather, it is a null or
@@ -200,15 +180,17 @@ def user_agent() -> str:
 
 
 class LocalFSAdapter(BaseAdapter):
+
     def send(
         self,
-        request: PreparedRequest,
-        stream: bool = False,
-        timeout: Optional[Union[float, Tuple[float, float]]] = None,
-        verify: Union[bool, str] = True,
-        cert: Optional[Union[str, Tuple[str, str]]] = None,
-        proxies: Optional[Mapping[str, str]] = None,
-    ) -> Response:
+        request,  # type: PreparedRequest
+        stream=False,  # type: bool
+        timeout=None,  # type: Optional[Union[float, Tuple[float, float]]]
+        verify=True,  # type: Union[bool, str]
+        cert=None,  # type: Optional[Union[str, Tuple[str, str]]]
+        proxies=None,  # type:Optional[Mapping[str, str]]
+    ):
+        # type: (...) -> Response
         pathname = url_to_path(request.url)
 
         resp = Response()
@@ -223,58 +205,62 @@ class LocalFSAdapter(BaseAdapter):
         else:
             modified = email.utils.formatdate(stats.st_mtime, usegmt=True)
             content_type = mimetypes.guess_type(pathname)[0] or "text/plain"
-            resp.headers = CaseInsensitiveDict(
-                {
-                    "Content-Type": content_type,
-                    "Content-Length": stats.st_size,
-                    "Last-Modified": modified,
-                }
-            )
+            resp.headers = CaseInsensitiveDict({
+                "Content-Type": content_type,
+                "Content-Length": stats.st_size,
+                "Last-Modified": modified,
+            })
 
             resp.raw = open(pathname, "rb")
             resp.close = resp.raw.close
 
         return resp
 
-    def close(self) -> None:
+    def close(self):
+        # type: () -> None
         pass
 
 
 class InsecureHTTPAdapter(HTTPAdapter):
+
     def cert_verify(
         self,
-        conn: ConnectionPool,
-        url: str,
-        verify: Union[bool, str],
-        cert: Optional[Union[str, Tuple[str, str]]],
-    ) -> None:
+        conn,  # type: ConnectionPool
+        url,  # type: str
+        verify,  # type: Union[bool, str]
+        cert,  # type: Optional[Union[str, Tuple[str, str]]]
+    ):
+        # type: (...) -> None
         super().cert_verify(conn=conn, url=url, verify=False, cert=cert)
 
 
 class InsecureCacheControlAdapter(CacheControlAdapter):
+
     def cert_verify(
         self,
-        conn: ConnectionPool,
-        url: str,
-        verify: Union[bool, str],
-        cert: Optional[Union[str, Tuple[str, str]]],
-    ) -> None:
+        conn,  # type: ConnectionPool
+        url,  # type: str
+        verify,  # type: Union[bool, str]
+        cert,  # type: Optional[Union[str, Tuple[str, str]]]
+    ):
+        # type: (...) -> None
         super().cert_verify(conn=conn, url=url, verify=False, cert=cert)
 
 
 class PipSession(requests.Session):
 
-    timeout: Optional[int] = None
+    timeout = None  # type: Optional[int]
 
     def __init__(
         self,
-        *args: Any,
-        retries: int = 0,
-        cache: Optional[str] = None,
-        trusted_hosts: Sequence[str] = (),
-        index_urls: Optional[List[str]] = None,
-        **kwargs: Any,
-    ) -> None:
+        *args,  # type: Any
+        retries=0,  # type: int
+        cache=None,  # type: Optional[str]
+        trusted_hosts=(),  # type: Sequence[str]
+        index_urls=None,  # type: Optional[List[str]]
+        **kwargs,  # type: Any
+    ):
+        # type: (...) -> None
         """
         :param trusted_hosts: Domains not to emit warnings for when not using
             HTTPS.
@@ -283,7 +269,7 @@ class PipSession(requests.Session):
 
         # Namespace the attribute with "pip_" just in case to prevent
         # possible conflicts with the base class.
-        self.pip_trusted_origins: List[Tuple[str, Optional[int]]] = []
+        self.pip_trusted_origins = []  # type: List[Tuple[str, Optional[int]]]
 
         # Attach our User Agent to the request
         self.headers["User-Agent"] = user_agent()
@@ -297,6 +283,7 @@ class PipSession(requests.Session):
             # Set the total number of retries that a particular request can
             # have.
             total=retries,
+
             # A 503 error from PyPI typically means that the Fastly -> Origin
             # connection got interrupted in some way. A 503 error in general
             # is typically considered a transient error so we'll go ahead and
@@ -304,6 +291,7 @@ class PipSession(requests.Session):
             # A 500 may indicate transient error in Amazon S3
             # A 520 or 527 - may indicate transient error in CloudFlare
             status_forcelist=[500, 503, 520, 527],
+
             # Add a small amount of back off between failed requests in
             # order to prevent hammering the service.
             backoff_factor=0.25,
@@ -343,16 +331,16 @@ class PipSession(requests.Session):
         for host in trusted_hosts:
             self.add_trusted_host(host, suppress_logging=True)
 
-    def update_index_urls(self, new_index_urls: List[str]) -> None:
+    def update_index_urls(self, new_index_urls):
+        # type: (List[str]) -> None
         """
         :param new_index_urls: New index urls to update the authentication
             handler with.
         """
         self.auth.index_urls = new_index_urls
 
-    def add_trusted_host(
-        self, host: str, source: Optional[str] = None, suppress_logging: bool = False
-    ) -> None:
+    def add_trusted_host(self, host, source=None, suppress_logging=False):
+        # type: (str, Optional[str], bool) -> None
         """
         :param host: It is okay to provide a host that has previously been
             added.
@@ -360,39 +348,45 @@ class PipSession(requests.Session):
             string came from.
         """
         if not suppress_logging:
-            msg = f"adding trusted host: {host!r}"
+            msg = f'adding trusted host: {host!r}'
             if source is not None:
-                msg += f" (from {source})"
+                msg += f' (from {source})'
             logger.info(msg)
 
         host_port = parse_netloc(host)
         if host_port not in self.pip_trusted_origins:
             self.pip_trusted_origins.append(host_port)
 
-        self.mount(build_url_from_netloc(host) + "/", self._trusted_host_adapter)
+        self.mount(
+            build_url_from_netloc(host) + '/',
+            self._trusted_host_adapter
+        )
         if not host_port[1]:
             # Mount wildcard ports for the same host.
-            self.mount(build_url_from_netloc(host) + ":", self._trusted_host_adapter)
+            self.mount(
+                build_url_from_netloc(host) + ':',
+                self._trusted_host_adapter
+            )
 
-    def iter_secure_origins(self) -> Iterator[SecureOrigin]:
+    def iter_secure_origins(self):
+        # type: () -> Iterator[SecureOrigin]
         yield from SECURE_ORIGINS
         for host, port in self.pip_trusted_origins:
-            yield ("*", host, "*" if port is None else port)
+            yield ('*', host, '*' if port is None else port)
 
-    def is_secure_origin(self, location: Link) -> bool:
+    def is_secure_origin(self, location):
+        # type: (Link) -> bool
         # Determine if this url used a secure transport mechanism
         parsed = urllib.parse.urlparse(str(location))
         origin_protocol, origin_host, origin_port = (
-            parsed.scheme,
-            parsed.hostname,
-            parsed.port,
+            parsed.scheme, parsed.hostname, parsed.port,
         )
 
         # The protocol to use to see if the protocol matches.
         # Don't count the repository type as part of the protocol: in
         # cases such as "git+ssh", only use "ssh". (I.e., Only verify against
         # the last scheme.)
-        origin_protocol = origin_protocol.rsplit("+", 1)[-1]
+        origin_protocol = origin_protocol.rsplit('+', 1)[-1]
 
         # Determine if our origin is a secure origin by looking through our
         # hardcoded list of secure origins, as well as any additional ones
@@ -409,9 +403,9 @@ class PipSession(requests.Session):
                 # We don't have both a valid address or a valid network, so
                 # we'll check this origin against hostnames.
                 if (
-                    origin_host
-                    and origin_host.lower() != secure_host.lower()
-                    and secure_host != "*"
+                    origin_host and
+                    origin_host.lower() != secure_host.lower() and
+                    secure_host != "*"
                 ):
                     continue
             else:
@@ -422,9 +416,9 @@ class PipSession(requests.Session):
 
             # Check to see if the port matches.
             if (
-                origin_port != secure_port
-                and secure_port != "*"
-                and secure_port is not None
+                origin_port != secure_port and
+                secure_port != "*" and
+                secure_port is not None
             ):
                 continue
 
@@ -446,7 +440,8 @@ class PipSession(requests.Session):
 
         return False
 
-    def request(self, method: str, url: str, *args: Any, **kwargs: Any) -> Response:
+    def request(self, method, url, *args, **kwargs):
+        # type: (str, str, *Any, **Any) -> Response
         # Allow setting a default timeout on a session
         kwargs.setdefault("timeout", self.timeout)
 

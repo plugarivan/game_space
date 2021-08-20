@@ -14,7 +14,8 @@ from pip._internal.utils.misc import get_pip_version, get_prog
 __all__ = ["create_main_parser", "parse_command"]
 
 
-def create_main_parser() -> ConfigOptionParser:
+def create_main_parser():
+    # type: () -> ConfigOptionParser
     """Creates and returns the main parser for pip's CLI"""
 
     parser = ConfigOptionParser(
@@ -45,7 +46,8 @@ def create_main_parser() -> ConfigOptionParser:
     return parser
 
 
-def parse_command(args: List[str]) -> Tuple[str, List[str]]:
+def parse_command(args):
+    # type: (List[str]) -> Tuple[str, List[str]]
     parser = create_main_parser()
 
     # Note: parser calls disable_interspersed_args(), so the result of this

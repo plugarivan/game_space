@@ -1,9 +1,9 @@
 import json
 import logging
 from optparse import Values
-from typing import TYPE_CHECKING, Iterator, List, Optional, Sequence, Tuple, cast
+from typing import Iterator, List, Set, Tuple
 
-from pip._vendor.packaging.utils import canonicalize_name
+from pip._vendor.pkg_resources import Distribution
 
 from pip._internal.cli import cmdoptions
 from pip._internal.cli.req_command import IndexGroupCommand
@@ -11,26 +11,17 @@ from pip._internal.cli.status_codes import SUCCESS
 from pip._internal.exceptions import CommandError
 from pip._internal.index.collector import LinkCollector
 from pip._internal.index.package_finder import PackageFinder
-from pip._internal.metadata import BaseDistribution, get_environment
 from pip._internal.models.selection_prefs import SelectionPreferences
 from pip._internal.network.session import PipSession
-from pip._internal.utils.misc import stdlib_pkgs, tabulate, write_output
+from pip._internal.utils.compat import stdlib_pkgs
+from pip._internal.utils.misc import (
+    dist_is_editable,
+    get_installed_distributions,
+    tabulate,
+    write_output,
+)
+from pip._internal.utils.packaging import get_installer
 from pip._internal.utils.parallel import map_multithread
-
-if TYPE_CHECKING:
-    from pip._internal.metadata.base import DistributionVersion
-
-    class _DistWithLatestInfo(BaseDistribution):
-        """Give the distribution object a couple of extra fields.
-
-        These will be populated during ``get_outdated()``. This is dirty but
-        makes the rest of the code much cleaner.
-        """
-        latest_version: DistributionVersion
-        latest_filetype: str
-
-    _ProcessedDists = Sequence[_DistWithLatestInfo]
-
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +37,8 @@ class ListCommand(IndexGroupCommand):
     usage = """
       %prog [options]"""
 
-    def add_options(self) -> None:
+    def add_options(self):
+        # type: () -> None
         self.cmd_opts.add_option(
             '-o', '--outdated',
             action='store_true',
@@ -123,9 +115,8 @@ class ListCommand(IndexGroupCommand):
         self.parser.insert_option_group(0, index_opts)
         self.parser.insert_option_group(0, self.cmd_opts)
 
-    def _build_package_finder(
-        self, options: Values, session: PipSession
-    ) -> PackageFinder:
+    def _build_package_finder(self, options, session):
+        # type: (Values, PipSession) -> PackageFinder
         """
         Create a package finder appropriate to this list command.
         """
@@ -142,7 +133,8 @@ class ListCommand(IndexGroupCommand):
             selection_prefs=selection_prefs,
         )
 
-    def run(self, options: Values, args: List[str]) -> int:
+    def run(self, options, args):
+        # type: (Values, List[str]) -> int
         if options.outdated and options.uptodate:
             raise CommandError(
                 "Options --outdated and --uptodate cannot be combined.")
@@ -151,18 +143,16 @@ class ListCommand(IndexGroupCommand):
 
         skip = set(stdlib_pkgs)
         if options.excludes:
-            skip.update(canonicalize_name(n) for n in options.excludes)
+            skip.update(options.excludes)
 
-        packages: "_ProcessedDists" = [
-            cast("_DistWithLatestInfo", d)
-            for d in get_environment(options.path).iter_installed_distributions(
-                local_only=options.local,
-                user_only=options.user,
-                editables_only=options.editable,
-                include_editables=options.include_editable,
-                skip=skip,
-            )
-        ]
+        packages = get_installed_distributions(
+            local_only=options.local,
+            user_only=options.user,
+            editables_only=options.editable,
+            include_editables=options.include_editable,
+            paths=options.path,
+            skip=skip,
+        )
 
         # get_not_required must be called firstly in order to find and
         # filter out all dependencies correctly. Otherwise a package
@@ -179,53 +169,46 @@ class ListCommand(IndexGroupCommand):
         self.output_package_listing(packages, options)
         return SUCCESS
 
-    def get_outdated(
-        self, packages: "_ProcessedDists", options: Values
-    ) -> "_ProcessedDists":
+    def get_outdated(self, packages, options):
+        # type: (List[Distribution], Values) -> List[Distribution]
         return [
             dist for dist in self.iter_packages_latest_infos(packages, options)
-            if dist.latest_version > dist.version
+            if dist.latest_version > dist.parsed_version
         ]
 
-    def get_uptodate(
-        self, packages: "_ProcessedDists", options: Values
-    ) -> "_ProcessedDists":
+    def get_uptodate(self, packages, options):
+        # type: (List[Distribution], Values) -> List[Distribution]
         return [
             dist for dist in self.iter_packages_latest_infos(packages, options)
-            if dist.latest_version == dist.version
+            if dist.latest_version == dist.parsed_version
         ]
 
-    def get_not_required(
-        self, packages: "_ProcessedDists", options: Values
-    ) -> "_ProcessedDists":
-        dep_keys = {
-            canonicalize_name(dep.name)
-            for dist in packages
-            for dep in (dist.iter_dependencies() or ())
-        }
+    def get_not_required(self, packages, options):
+        # type: (List[Distribution], Values) -> List[Distribution]
+        dep_keys = set()  # type: Set[Distribution]
+        for dist in packages:
+            dep_keys.update(requirement.key for requirement in dist.requires())
 
         # Create a set to remove duplicate packages, and cast it to a list
         # to keep the return type consistent with get_outdated and
         # get_uptodate
-        return list({pkg for pkg in packages if pkg.canonical_name not in dep_keys})
+        return list({pkg for pkg in packages if pkg.key not in dep_keys})
 
-    def iter_packages_latest_infos(
-        self, packages: "_ProcessedDists", options: Values
-    ) -> Iterator["_DistWithLatestInfo"]:
+    def iter_packages_latest_infos(self, packages, options):
+        # type: (List[Distribution], Values) -> Iterator[Distribution]
         with self._build_session(options) as session:
             finder = self._build_package_finder(options, session)
 
-            def latest_info(
-                dist: "_DistWithLatestInfo"
-            ) -> Optional["_DistWithLatestInfo"]:
-                all_candidates = finder.find_all_candidates(dist.canonical_name)
+            def latest_info(dist):
+                # type: (Distribution) -> Distribution
+                all_candidates = finder.find_all_candidates(dist.key)
                 if not options.pre:
                     # Remove prereleases
                     all_candidates = [candidate for candidate in all_candidates
                                       if not candidate.version.is_prerelease]
 
                 evaluator = finder.make_candidate_evaluator(
-                    project_name=dist.canonical_name,
+                    project_name=dist.project_name,
                 )
                 best_candidate = evaluator.sort_best_candidate(all_candidates)
                 if best_candidate is None:
@@ -236,6 +219,7 @@ class ListCommand(IndexGroupCommand):
                     typ = 'wheel'
                 else:
                     typ = 'sdist'
+                # This is dirty but makes the rest of the code much cleaner
                 dist.latest_version = remote_version
                 dist.latest_filetype = typ
                 return dist
@@ -244,12 +228,11 @@ class ListCommand(IndexGroupCommand):
                 if dist is not None:
                     yield dist
 
-    def output_package_listing(
-        self, packages: "_ProcessedDists", options: Values
-    ) -> None:
+    def output_package_listing(self, packages, options):
+        # type: (List[Distribution], Values) -> None
         packages = sorted(
             packages,
-            key=lambda dist: dist.canonical_name,
+            key=lambda dist: dist.project_name.lower(),
         )
         if options.list_format == 'columns' and packages:
             data, header = format_for_columns(packages, options)
@@ -257,16 +240,15 @@ class ListCommand(IndexGroupCommand):
         elif options.list_format == 'freeze':
             for dist in packages:
                 if options.verbose >= 1:
-                    write_output("%s==%s (%s)", dist.raw_name,
+                    write_output("%s==%s (%s)", dist.project_name,
                                  dist.version, dist.location)
                 else:
-                    write_output("%s==%s", dist.raw_name, dist.version)
+                    write_output("%s==%s", dist.project_name, dist.version)
         elif options.list_format == 'json':
             write_output(format_for_json(packages, options))
 
-    def output_package_listing_columns(
-        self, data: List[List[str]], header: List[str]
-    ) -> None:
+    def output_package_listing_columns(self, data, header):
+        # type: (List[List[str]], List[str]) -> None
         # insert the header first: we need to know the size of column names
         if len(data) > 0:
             data.insert(0, header)
@@ -281,9 +263,8 @@ class ListCommand(IndexGroupCommand):
             write_output(val)
 
 
-def format_for_columns(
-    pkgs: "_ProcessedDists", options: Values
-) -> Tuple[List[List[str]], List[str]]:
+def format_for_columns(pkgs, options):
+    # type: (List[Distribution], Values) -> Tuple[List[List[str]], List[str]]
     """
     Convert the package data into something usable
     by output_package_listing_columns.
@@ -296,7 +277,7 @@ def format_for_columns(
         header = ["Package", "Version"]
 
     data = []
-    if options.verbose >= 1 or any(x.editable for x in pkgs):
+    if options.verbose >= 1 or any(dist_is_editable(x) for x in pkgs):
         header.append("Location")
     if options.verbose >= 1:
         header.append("Installer")
@@ -304,32 +285,33 @@ def format_for_columns(
     for proj in pkgs:
         # if we're working on the 'outdated' list, separate out the
         # latest_version and type
-        row = [proj.raw_name, str(proj.version)]
+        row = [proj.project_name, proj.version]
 
         if running_outdated:
-            row.append(str(proj.latest_version))
+            row.append(proj.latest_version)
             row.append(proj.latest_filetype)
 
-        if options.verbose >= 1 or proj.editable:
-            row.append(proj.location or "")
+        if options.verbose >= 1 or dist_is_editable(proj):
+            row.append(proj.location)
         if options.verbose >= 1:
-            row.append(proj.installer)
+            row.append(get_installer(proj))
 
         data.append(row)
 
     return data, header
 
 
-def format_for_json(packages: "_ProcessedDists", options: Values) -> str:
+def format_for_json(packages, options):
+    # type: (List[Distribution], Values) -> str
     data = []
     for dist in packages:
         info = {
-            'name': dist.raw_name,
+            'name': dist.project_name,
             'version': str(dist.version),
         }
         if options.verbose >= 1:
-            info['location'] = dist.location or ""
-            info['installer'] = dist.installer
+            info['location'] = dist.location
+            info['installer'] = get_installer(dist)
         if options.outdated:
             info['latest_version'] = str(dist.latest_version)
             info['latest_filetype'] = dist.latest_filetype

@@ -50,10 +50,11 @@ DiscoveredDependencies = DefaultDict[str, List[InstallRequirement]]
 
 
 def _check_dist_requires_python(
-    dist: Distribution,
-    version_info: Tuple[int, int, int],
-    ignore_requires_python: bool = False,
-) -> None:
+    dist,  # type: Distribution
+    version_info,  # type: Tuple[int, int, int]
+    ignore_requires_python=False,  # type: bool
+):
+    # type: (...) -> None
     """
     Check whether the given Python version is compatible with a distribution's
     "Requires-Python" value.
@@ -83,7 +84,7 @@ def _check_dist_requires_python(
     version = ".".join(map(str, version_info))
     if ignore_requires_python:
         logger.debug(
-            "Ignoring failed Requires-Python check for package %r: %s not in %r",
+            "Ignoring failed Requires-Python check for package %r: " "%s not in %r",
             dist.project_name,
             version,
             requires_python,
@@ -106,18 +107,19 @@ class Resolver(BaseResolver):
 
     def __init__(
         self,
-        preparer: RequirementPreparer,
-        finder: PackageFinder,
-        wheel_cache: Optional[WheelCache],
-        make_install_req: InstallRequirementProvider,
-        use_user_site: bool,
-        ignore_dependencies: bool,
-        ignore_installed: bool,
-        ignore_requires_python: bool,
-        force_reinstall: bool,
-        upgrade_strategy: str,
-        py_version_info: Optional[Tuple[int, ...]] = None,
-    ) -> None:
+        preparer,  # type: RequirementPreparer
+        finder,  # type: PackageFinder
+        wheel_cache,  # type: Optional[WheelCache]
+        make_install_req,  # type: InstallRequirementProvider
+        use_user_site,  # type: bool
+        ignore_dependencies,  # type: bool
+        ignore_installed,  # type: bool
+        ignore_requires_python,  # type: bool
+        force_reinstall,  # type: bool
+        upgrade_strategy,  # type: str
+        py_version_info=None,  # type: Optional[Tuple[int, ...]]
+    ):
+        # type: (...) -> None
         super().__init__()
         assert upgrade_strategy in self._allowed_strategies
 
@@ -140,11 +142,12 @@ class Resolver(BaseResolver):
         self.use_user_site = use_user_site
         self._make_install_req = make_install_req
 
-        self._discovered_dependencies: DiscoveredDependencies = defaultdict(list)
+        self._discovered_dependencies = defaultdict(
+            list
+        )  # type: DiscoveredDependencies
 
-    def resolve(
-        self, root_reqs: List[InstallRequirement], check_supported_wheels: bool
-    ) -> RequirementSet:
+    def resolve(self, root_reqs, check_supported_wheels):
+        # type: (List[InstallRequirement], bool) -> RequirementSet
         """Resolve what operations need to be done
 
         As a side-effect of this method, the packages (and their dependencies)
@@ -165,7 +168,7 @@ class Resolver(BaseResolver):
         # exceptions cannot be checked ahead of time, because
         # _populate_link() needs to be called before we can make decisions
         # based on link type.
-        discovered_reqs: List[InstallRequirement] = []
+        discovered_reqs = []  # type: List[InstallRequirement]
         hash_errors = HashErrors()
         for req in chain(requirement_set.all_requirements, discovered_reqs):
             try:
@@ -179,7 +182,8 @@ class Resolver(BaseResolver):
 
         return requirement_set
 
-    def _is_upgrade_allowed(self, req: InstallRequirement) -> bool:
+    def _is_upgrade_allowed(self, req):
+        # type: (InstallRequirement) -> bool
         if self.upgrade_strategy == "to-satisfy-only":
             return False
         elif self.upgrade_strategy == "eager":
@@ -188,7 +192,8 @@ class Resolver(BaseResolver):
             assert self.upgrade_strategy == "only-if-needed"
             return req.user_supplied or req.constraint
 
-    def _set_req_to_reinstall(self, req: InstallRequirement) -> None:
+    def _set_req_to_reinstall(self, req):
+        # type: (InstallRequirement) -> None
         """
         Set a requirement to be installed.
         """
@@ -198,9 +203,8 @@ class Resolver(BaseResolver):
             req.should_reinstall = True
         req.satisfied_by = None
 
-    def _check_skip_installed(
-        self, req_to_install: InstallRequirement
-    ) -> Optional[str]:
+    def _check_skip_installed(self, req_to_install):
+        # type: (InstallRequirement) -> Optional[str]
         """Check if req_to_install should be skipped.
 
         This will check if the req is installed, and whether we should upgrade
@@ -252,7 +256,8 @@ class Resolver(BaseResolver):
         self._set_req_to_reinstall(req_to_install)
         return None
 
-    def _find_requirement_link(self, req: InstallRequirement) -> Optional[Link]:
+    def _find_requirement_link(self, req):
+        # type: (InstallRequirement) -> Optional[Link]
         upgrade = self._is_upgrade_allowed(req)
         best_candidate = self.finder.find_requirement(req, upgrade)
         if not best_candidate:
@@ -274,7 +279,8 @@ class Resolver(BaseResolver):
 
         return link
 
-    def _populate_link(self, req: InstallRequirement) -> None:
+    def _populate_link(self, req):
+        # type: (InstallRequirement) -> None
         """Ensure that if a link can be found for this, that it is found.
 
         Note that req.link may still be None - if the requirement is already
@@ -303,7 +309,8 @@ class Resolver(BaseResolver):
                 req.original_link_is_in_wheel_cache = True
             req.link = cache_entry.link
 
-    def _get_dist_for(self, req: InstallRequirement) -> Distribution:
+    def _get_dist_for(self, req):
+        # type: (InstallRequirement) -> Distribution
         """Takes a InstallRequirement and returns a single AbstractDist \
         representing a prepared variant of the same.
         """
@@ -344,16 +351,17 @@ class Resolver(BaseResolver):
                 self._set_req_to_reinstall(req)
             else:
                 logger.info(
-                    "Requirement already satisfied (use --upgrade to upgrade): %s",
+                    "Requirement already satisfied (use --upgrade to upgrade):" " %s",
                     req,
                 )
         return dist
 
     def _resolve_one(
         self,
-        requirement_set: RequirementSet,
-        req_to_install: InstallRequirement,
-    ) -> List[InstallRequirement]:
+        requirement_set,  # type: RequirementSet
+        req_to_install,  # type: InstallRequirement
+    ):
+        # type: (...) -> List[InstallRequirement]
         """Prepare a single requirements file.
 
         :return: A list of additional InstallRequirements to also install.
@@ -376,9 +384,10 @@ class Resolver(BaseResolver):
             ignore_requires_python=self.ignore_requires_python,
         )
 
-        more_reqs: List[InstallRequirement] = []
+        more_reqs = []  # type: List[InstallRequirement]
 
-        def add_req(subreq: Distribution, extras_requested: Iterable[str]) -> None:
+        def add_req(subreq, extras_requested):
+            # type: (Distribution, Iterable[str]) -> None
             sub_install_req = self._make_install_req(
                 str(subreq),
                 req_to_install,
@@ -423,9 +432,8 @@ class Resolver(BaseResolver):
 
         return more_reqs
 
-    def get_installation_order(
-        self, req_set: RequirementSet
-    ) -> List[InstallRequirement]:
+    def get_installation_order(self, req_set):
+        # type: (RequirementSet) -> List[InstallRequirement]
         """Create the installation order.
 
         The installation order is topological - requirements are installed
@@ -436,9 +444,10 @@ class Resolver(BaseResolver):
         # installs the user specified things in the order given, except when
         # dependencies must come earlier to achieve topological order.
         order = []
-        ordered_reqs: Set[InstallRequirement] = set()
+        ordered_reqs = set()  # type: Set[InstallRequirement]
 
-        def schedule(req: InstallRequirement) -> None:
+        def schedule(req):
+            # type: (InstallRequirement) -> None
             if req.satisfied_by or req in ordered_reqs:
                 return
             if req.constraint:

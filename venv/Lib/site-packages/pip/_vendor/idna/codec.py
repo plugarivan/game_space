@@ -1,24 +1,23 @@
 from .core import encode, decode, alabel, ulabel, IDNAError
 import codecs
 import re
-from typing import Tuple, Optional
 
 _unicode_dots_re = re.compile('[\u002e\u3002\uff0e\uff61]')
 
 class Codec(codecs.Codec):
 
     def encode(self, data, errors='strict'):
-        # type: (str, str) -> Tuple[bytes, int]
+
         if errors != 'strict':
             raise IDNAError('Unsupported error handling \"{}\"'.format(errors))
 
         if not data:
-            return b"", 0
+            return "", 0
 
         return encode(data), len(data)
 
     def decode(self, data, errors='strict'):
-        # type: (bytes, str) -> Tuple[str, int]
+
         if errors != 'strict':
             raise IDNAError('Unsupported error handling \"{}\"'.format(errors))
 
@@ -28,13 +27,12 @@ class Codec(codecs.Codec):
         return decode(data), len(data)
 
 class IncrementalEncoder(codecs.BufferedIncrementalEncoder):
-    def _buffer_encode(self, data, errors, final):  # type: ignore
-        # type: (str, str, bool) -> Tuple[str, int]
+    def _buffer_encode(self, data, errors, final):
         if errors != 'strict':
             raise IDNAError('Unsupported error handling \"{}\"'.format(errors))
 
         if not data:
-            return "", 0
+            return ('', 0)
 
         labels = _unicode_dots_re.split(data)
         trailing_dot = ''
@@ -57,13 +55,12 @@ class IncrementalEncoder(codecs.BufferedIncrementalEncoder):
             size += len(label)
 
         # Join with U+002E
-        result_str = '.'.join(result) + trailing_dot  # type: ignore
+        result = '.'.join(result) + trailing_dot
         size += len(trailing_dot)
-        return result_str, size
+        return (result, size)
 
 class IncrementalDecoder(codecs.BufferedIncrementalDecoder):
-    def _buffer_decode(self, data, errors, final):  # type: ignore
-        # type: (str, str, bool) -> Tuple[str, int]
+    def _buffer_decode(self, data, errors, final):
         if errors != 'strict':
             raise IDNAError('Unsupported error handling \"{}\"'.format(errors))
 
@@ -90,26 +87,22 @@ class IncrementalDecoder(codecs.BufferedIncrementalDecoder):
                 size += 1
             size += len(label)
 
-        result_str = '.'.join(result) + trailing_dot
+        result = '.'.join(result) + trailing_dot
         size += len(trailing_dot)
-        return (result_str, size)
+        return (result, size)
 
 
 class StreamWriter(Codec, codecs.StreamWriter):
     pass
 
-
 class StreamReader(Codec, codecs.StreamReader):
     pass
 
-
 def getregentry():
-    # type: () -> codecs.CodecInfo
-    # Compatibility as a search_function for codecs.register()
     return codecs.CodecInfo(
         name='idna',
-        encode=Codec().encode,  # type: ignore
-        decode=Codec().decode,  # type: ignore
+        encode=Codec().encode,
+        decode=Codec().decode,
         incrementalencoder=IncrementalEncoder,
         incrementaldecoder=IncrementalDecoder,
         streamwriter=StreamWriter,

@@ -37,7 +37,8 @@ class SearchCommand(Command, SessionCommandMixin):
       %prog [options] <query>"""
     ignore_require_venv = True
 
-    def add_options(self) -> None:
+    def add_options(self):
+        # type: () -> None
         self.cmd_opts.add_option(
             '-i', '--index',
             dest='index',
@@ -47,7 +48,8 @@ class SearchCommand(Command, SessionCommandMixin):
 
         self.parser.insert_option_group(0, self.cmd_opts)
 
-    def run(self, options: Values, args: List[str]) -> int:
+    def run(self, options, args):
+        # type: (Values, List[str]) -> int
         if not args:
             raise CommandError('Missing required argument (search query).')
         query = args
@@ -63,7 +65,8 @@ class SearchCommand(Command, SessionCommandMixin):
             return SUCCESS
         return NO_MATCHES_FOUND
 
-    def search(self, query: List[str], options: Values) -> List[Dict[str, str]]:
+    def search(self, query, options):
+        # type: (List[str], Values) -> List[Dict[str, str]]
         index_url = options.index
 
         session = self.get_default_session(options)
@@ -82,13 +85,14 @@ class SearchCommand(Command, SessionCommandMixin):
         return hits
 
 
-def transform_hits(hits: List[Dict[str, str]]) -> List["TransformedHit"]:
+def transform_hits(hits):
+    # type: (List[Dict[str, str]]) -> List[TransformedHit]
     """
     The list from pypi is really a list of versions. We want a list of
     packages with the list of versions stored inline. This converts the
     list from pypi into one we can use.
     """
-    packages: Dict[str, "TransformedHit"] = OrderedDict()
+    packages = OrderedDict()  # type: OrderedDict[str, TransformedHit]
     for hit in hits:
         name = hit['name']
         summary = hit['summary']
@@ -110,27 +114,8 @@ def transform_hits(hits: List[Dict[str, str]]) -> List["TransformedHit"]:
     return list(packages.values())
 
 
-def print_dist_installation_info(name: str, latest: str) -> None:
-    env = get_default_environment()
-    dist = env.get_distribution(name)
-    if dist is not None:
-        with indent_log():
-            if dist.version == latest:
-                write_output('INSTALLED: %s (latest)', dist.version)
-            else:
-                write_output('INSTALLED: %s', dist.version)
-                if parse_version(latest).pre:
-                    write_output('LATEST:    %s (pre-release; install'
-                                 ' with "pip install --pre")', latest)
-                else:
-                    write_output('LATEST:    %s', latest)
-
-
-def print_results(
-    hits: List["TransformedHit"],
-    name_column_width: Optional[int] = None,
-    terminal_width: Optional[int] = None,
-) -> None:
+def print_results(hits, name_column_width=None, terminal_width=None):
+    # type: (List[TransformedHit], Optional[int], Optional[int]) -> None
     if not hits:
         return
     if name_column_width is None:
@@ -139,6 +124,7 @@ def print_results(
             for hit in hits
         ]) + 4
 
+    env = get_default_environment()
     for hit in hits:
         name = hit['name']
         summary = hit['summary'] or ''
@@ -155,10 +141,22 @@ def print_results(
         line = f'{name_latest:{name_column_width}} - {summary}'
         try:
             write_output(line)
-            print_dist_installation_info(name, latest)
+            dist = env.get_distribution(name)
+            if dist is not None:
+                with indent_log():
+                    if dist.version == latest:
+                        write_output('INSTALLED: %s (latest)', dist.version)
+                    else:
+                        write_output('INSTALLED: %s', dist.version)
+                        if parse_version(latest).pre:
+                            write_output('LATEST:    %s (pre-release; install'
+                                         ' with "pip install --pre")', latest)
+                        else:
+                            write_output('LATEST:    %s', latest)
         except UnicodeEncodeError:
             pass
 
 
-def highest_version(versions: List[str]) -> str:
+def highest_version(versions):
+    # type: (List[str]) -> str
     return max(versions, key=parse_version)

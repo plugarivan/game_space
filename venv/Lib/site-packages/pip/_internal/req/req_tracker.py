@@ -13,12 +13,13 @@ logger = logging.getLogger(__name__)
 
 
 @contextlib.contextmanager
-def update_env_context_manager(**changes: str) -> Iterator[None]:
+def update_env_context_manager(**changes):
+    # type: (str) -> Iterator[None]
     target = os.environ
 
     # Save values from the target and change them.
     non_existent_marker = object()
-    saved_values: Dict[str, Union[object, str]] = {}
+    saved_values = {}  # type: Dict[str, Union[object, str]]
     for name, new_value in changes.items():
         try:
             saved_values[name] = target[name]
@@ -39,7 +40,8 @@ def update_env_context_manager(**changes: str) -> Iterator[None]:
 
 
 @contextlib.contextmanager
-def get_requirement_tracker() -> Iterator["RequirementTracker"]:
+def get_requirement_tracker():
+    # type: () -> Iterator[RequirementTracker]
     root = os.environ.get('PIP_REQ_TRACKER')
     with contextlib.ExitStack() as ctx:
         if root is None:
@@ -55,28 +57,33 @@ def get_requirement_tracker() -> Iterator["RequirementTracker"]:
 
 class RequirementTracker:
 
-    def __init__(self, root: str) -> None:
+    def __init__(self, root):
+        # type: (str) -> None
         self._root = root
-        self._entries: Set[InstallRequirement] = set()
+        self._entries = set()  # type: Set[InstallRequirement]
         logger.debug("Created build tracker: %s", self._root)
 
-    def __enter__(self) -> "RequirementTracker":
+    def __enter__(self):
+        # type: () -> RequirementTracker
         logger.debug("Entered build tracker: %s", self._root)
         return self
 
     def __exit__(
         self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType]
-    ) -> None:
+        exc_type,  # type: Optional[Type[BaseException]]
+        exc_val,  # type: Optional[BaseException]
+        exc_tb  # type: Optional[TracebackType]
+    ):
+        # type: (...) -> None
         self.cleanup()
 
-    def _entry_path(self, link: Link) -> str:
+    def _entry_path(self, link):
+        # type: (Link) -> str
         hashed = hashlib.sha224(link.url_without_fragment.encode()).hexdigest()
         return os.path.join(self._root, hashed)
 
-    def add(self, req: InstallRequirement) -> None:
+    def add(self, req):
+        # type: (InstallRequirement) -> None
         """Add an InstallRequirement to build tracking.
         """
 
@@ -106,7 +113,8 @@ class RequirementTracker:
 
         logger.debug('Added %s to build tracker %r', req, self._root)
 
-    def remove(self, req: InstallRequirement) -> None:
+    def remove(self, req):
+        # type: (InstallRequirement) -> None
         """Remove an InstallRequirement from build tracking.
         """
 
@@ -117,14 +125,16 @@ class RequirementTracker:
 
         logger.debug('Removed %s from build tracker %r', req, self._root)
 
-    def cleanup(self) -> None:
+    def cleanup(self):
+        # type: () -> None
         for req in set(self._entries):
             self.remove(req)
 
         logger.debug("Removed build tracker: %r", self._root)
 
     @contextlib.contextmanager
-    def track(self, req: InstallRequirement) -> Iterator[None]:
+    def track(self, req):
+        # type: (InstallRequirement) -> Iterator[None]
         self.add(req)
         yield
         self.remove(req)

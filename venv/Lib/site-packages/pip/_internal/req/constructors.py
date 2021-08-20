@@ -39,7 +39,8 @@ logger = logging.getLogger(__name__)
 operators = Specifier._operators.keys()
 
 
-def _strip_extras(path: str) -> Tuple[str, Optional[str]]:
+def _strip_extras(path):
+    # type: (str) -> Tuple[str, Optional[str]]
     m = re.match(r'^(.+)(\[[^\]]+\])$', path)
     extras = None
     if m:
@@ -51,13 +52,15 @@ def _strip_extras(path: str) -> Tuple[str, Optional[str]]:
     return path_no_extras, extras
 
 
-def convert_extras(extras: Optional[str]) -> Set[str]:
+def convert_extras(extras):
+    # type: (Optional[str]) -> Set[str]
     if not extras:
         return set()
     return Requirement("placeholder" + extras.lower()).extras
 
 
-def parse_editable(editable_req: str) -> Tuple[Optional[str], str, Set[str]]:
+def parse_editable(editable_req):
+    # type: (str) -> Tuple[Optional[str], str, Set[str]]
     """Parses an editable requirement into:
         - a requirement name
         - an URL
@@ -128,7 +131,8 @@ def parse_editable(editable_req: str) -> Tuple[Optional[str], str, Set[str]]:
     return package_name, url, set()
 
 
-def deduce_helpful_msg(req: str) -> str:
+def deduce_helpful_msg(req):
+    # type: (str) -> str
     """Returns helpful msg in case requirements file does not exist,
     or cannot be parsed.
 
@@ -161,10 +165,10 @@ def deduce_helpful_msg(req: str) -> str:
 class RequirementParts:
     def __init__(
             self,
-            requirement: Optional[Requirement],
-            link: Optional[Link],
-            markers: Optional[Marker],
-            extras: Set[str],
+            requirement,  # type: Optional[Requirement]
+            link,         # type: Optional[Link]
+            markers,      # type: Optional[Marker]
+            extras,       # type: Set[str]
     ):
         self.requirement = requirement
         self.link = link
@@ -172,12 +176,13 @@ class RequirementParts:
         self.extras = extras
 
 
-def parse_req_from_editable(editable_req: str) -> RequirementParts:
+def parse_req_from_editable(editable_req):
+    # type: (str) -> RequirementParts
     name, url, extras_override = parse_editable(editable_req)
 
     if name is not None:
         try:
-            req: Optional[Requirement] = Requirement(name)
+            req = Requirement(name)  # type: Optional[Requirement]
         except InvalidRequirement:
             raise InstallationError(f"Invalid requirement: '{name}'")
     else:
@@ -192,14 +197,15 @@ def parse_req_from_editable(editable_req: str) -> RequirementParts:
 
 
 def install_req_from_editable(
-    editable_req: str,
-    comes_from: Optional[Union[InstallRequirement, str]] = None,
-    use_pep517: Optional[bool] = None,
-    isolated: bool = False,
-    options: Optional[Dict[str, Any]] = None,
-    constraint: bool = False,
-    user_supplied: bool = False,
-) -> InstallRequirement:
+    editable_req,  # type: str
+    comes_from=None,  # type: Optional[Union[InstallRequirement, str]]
+    use_pep517=None,  # type: Optional[bool]
+    isolated=False,  # type: bool
+    options=None,  # type: Optional[Dict[str, Any]]
+    constraint=False,  # type: bool
+    user_supplied=False,  # type: bool
+):
+    # type: (...) -> InstallRequirement
 
     parts = parse_req_from_editable(editable_req)
 
@@ -219,7 +225,8 @@ def install_req_from_editable(
     )
 
 
-def _looks_like_path(name: str) -> bool:
+def _looks_like_path(name):
+    # type: (str) -> bool
     """Checks whether the string "looks like" a path on the filesystem.
 
     This does not check whether the target actually exists, only judge from the
@@ -238,10 +245,11 @@ def _looks_like_path(name: str) -> bool:
     return False
 
 
-def _get_url_from_path(path: str, name: str) -> Optional[str]:
+def _get_url_from_path(path, name):
+    # type: (str, str) -> Optional[str]
     """
-    First, it checks whether a provided path is an installable directory. If it
-    is, returns the path.
+    First, it checks whether a provided path is an installable directory
+    (e.g. it has a setup.py). If it is, returns the path.
 
     If false, check if the path is an archive file (such as a .whl).
     The function checks if the path is a file. If false, if the path has
@@ -271,7 +279,8 @@ def _get_url_from_path(path: str, name: str) -> Optional[str]:
     return path_to_url(path)
 
 
-def parse_req_from_line(name: str, line_source: Optional[str]) -> RequirementParts:
+def parse_req_from_line(name, line_source):
+    # type: (str, Optional[str]) -> RequirementParts
     if is_url(name):
         marker_sep = '; '
     else:
@@ -320,7 +329,8 @@ def parse_req_from_line(name: str, line_source: Optional[str]) -> RequirementPar
 
     extras = convert_extras(extras_as_string)
 
-    def with_source(text: str) -> str:
+    def with_source(text):
+        # type: (str) -> str
         if not line_source:
             return text
         return f'{text} (from {line_source})'
@@ -356,7 +366,7 @@ def parse_req_from_line(name: str, line_source: Optional[str]) -> RequirementPar
         return req
 
     if req_as_string is not None:
-        req: Optional[Requirement] = _parse_req_string(req_as_string)
+        req = _parse_req_string(req_as_string)  # type: Optional[Requirement]
     else:
         req = None
 
@@ -364,15 +374,16 @@ def parse_req_from_line(name: str, line_source: Optional[str]) -> RequirementPar
 
 
 def install_req_from_line(
-    name: str,
-    comes_from: Optional[Union[str, InstallRequirement]] = None,
-    use_pep517: Optional[bool] = None,
-    isolated: bool = False,
-    options: Optional[Dict[str, Any]] = None,
-    constraint: bool = False,
-    line_source: Optional[str] = None,
-    user_supplied: bool = False,
-) -> InstallRequirement:
+    name,  # type: str
+    comes_from=None,  # type: Optional[Union[str, InstallRequirement]]
+    use_pep517=None,  # type: Optional[bool]
+    isolated=False,  # type: bool
+    options=None,  # type: Optional[Dict[str, Any]]
+    constraint=False,  # type: bool
+    line_source=None,  # type: Optional[str]
+    user_supplied=False,  # type: bool
+):
+    # type: (...) -> InstallRequirement
     """Creates an InstallRequirement from a name, which might be a
     requirement, directory containing 'setup.py', filename, or URL.
 
@@ -394,12 +405,13 @@ def install_req_from_line(
 
 
 def install_req_from_req_string(
-    req_string: str,
-    comes_from: Optional[InstallRequirement] = None,
-    isolated: bool = False,
-    use_pep517: Optional[bool] = None,
-    user_supplied: bool = False,
-) -> InstallRequirement:
+    req_string,  # type: str
+    comes_from=None,  # type: Optional[InstallRequirement]
+    isolated=False,  # type: bool
+    use_pep517=None,  # type: Optional[bool]
+    user_supplied=False,  # type: bool
+):
+    # type: (...) -> InstallRequirement
     try:
         req = Requirement(req_string)
     except InvalidRequirement:
@@ -428,11 +440,12 @@ def install_req_from_req_string(
 
 
 def install_req_from_parsed_requirement(
-    parsed_req: ParsedRequirement,
-    isolated: bool = False,
-    use_pep517: Optional[bool] = None,
-    user_supplied: bool = False,
-) -> InstallRequirement:
+    parsed_req,  # type: ParsedRequirement
+    isolated=False,  # type: bool
+    use_pep517=None,  # type: Optional[bool]
+    user_supplied=False,  # type: bool
+):
+    # type: (...) -> InstallRequirement
     if parsed_req.is_editable:
         req = install_req_from_editable(
             parsed_req.requirement,
@@ -457,9 +470,8 @@ def install_req_from_parsed_requirement(
     return req
 
 
-def install_req_from_link_and_ireq(
-    link: Link, ireq: InstallRequirement
-) -> InstallRequirement:
+def install_req_from_link_and_ireq(link, ireq):
+    # type: (Link, InstallRequirement) -> InstallRequirement
     return InstallRequirement(
         req=ireq.req,
         comes_from=ireq.comes_from,

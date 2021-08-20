@@ -178,7 +178,7 @@ def untar_file(filename, location):
             filename,
         )
         mode = "r:*"
-    tar = tarfile.open(filename, mode, encoding="utf-8")
+    tar = tarfile.open(filename, mode)
     try:
         leading = has_leading_dir([member.name for member in tar.getmembers()])
         for member in tar.getmembers():

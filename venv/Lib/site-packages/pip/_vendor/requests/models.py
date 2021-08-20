@@ -29,7 +29,7 @@ from .auth import HTTPBasicAuth
 from .cookies import cookiejar_from_dict, get_cookie_header, _copy_cookie_jar
 from .exceptions import (
     HTTPError, MissingSchema, InvalidURL, ChunkedEncodingError,
-    ContentDecodingError, ConnectionError, StreamConsumedError, InvalidJSONError)
+    ContentDecodingError, ConnectionError, StreamConsumedError)
 from ._internal_utils import to_native_string, unicode_is_ascii
 from .utils import (
     guess_filename, get_auth_from_url, requote_uri,
@@ -466,12 +466,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
             # urllib3 requires a bytes-like body. Python 2's json.dumps
             # provides this natively, but Python 3 gives a Unicode string.
             content_type = 'application/json'
-
-            try:
-              body = complexjson.dumps(json, allow_nan=False)
-            except ValueError as ve:
-              raise InvalidJSONError(ve, request=self)
-
+            body = complexjson.dumps(json)
             if not isinstance(body, bytes):
                 body = body.encode('utf-8')
 
@@ -731,7 +726,7 @@ class Response(object):
 
     @property
     def apparent_encoding(self):
-        """The apparent encoding, provided by the charset_normalizer or chardet libraries."""
+        """The apparent encoding, provided by the chardet library."""
         return chardet.detect(self.content)['encoding']
 
     def iter_content(self, chunk_size=1, decode_unicode=False):
@@ -845,7 +840,7 @@ class Response(object):
         """Content of the response, in unicode.
 
         If Response.encoding is None, encoding will be guessed using
-        ``charset_normalizer`` or ``chardet``.
+        ``chardet``.
 
         The encoding of the response content is determined based solely on HTTP
         headers, following RFC 2616 to the letter. If you can take advantage of
@@ -882,18 +877,13 @@ class Response(object):
         r"""Returns the json-encoded content of a response, if any.
 
         :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
-        :raises simplejson.JSONDecodeError: If the response body does not
-            contain valid json and simplejson is installed.
-        :raises json.JSONDecodeError: If the response body does not contain
-            valid json and simplejson is not installed on Python 3.
-        :raises ValueError: If the response body does not contain valid
-            json and simplejson is not installed on Python 2.        
+        :raises ValueError: If the response body does not contain valid json.
         """
 
         if not self.encoding and self.content and len(self.content) > 3:
             # No encoding set. JSON RFC 4627 section 3 states we should expect
             # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
+            # decoding fails, fall back to `self.text` (using chardet to make
             # a best guess).
             encoding = guess_json_utf(self.content)
             if encoding is not None:

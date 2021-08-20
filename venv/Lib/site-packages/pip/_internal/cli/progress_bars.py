@@ -1,7 +1,7 @@
 import itertools
 import sys
 from signal import SIGINT, default_int_handler, signal
-from typing import Any
+from typing import Any, Dict, List
 
 from pip._vendor.progress.bar import Bar, FillingCirclesBar, IncrementalBar
 from pip._vendor.progress.spinner import Spinner
@@ -18,7 +18,8 @@ except Exception:
     colorama = None
 
 
-def _select_progress_class(preferred: Bar, fallback: Bar) -> Bar:
+def _select_progress_class(preferred, fallback):
+    # type: (Bar, Bar) -> Bar
     encoding = getattr(preferred.file, "encoding", None)
 
     # If we don't know what encoding this file is in, then we'll just assume
@@ -45,7 +46,7 @@ def _select_progress_class(preferred: Bar, fallback: Bar) -> Bar:
         return preferred
 
 
-_BaseBar: Any = _select_progress_class(IncrementalBar, Bar)
+_BaseBar = _select_progress_class(IncrementalBar, Bar)  # type: Any
 
 
 class InterruptibleMixin:
@@ -66,7 +67,8 @@ class InterruptibleMixin:
        download has already completed, for example.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args, **kwargs):
+        # type: (List[Any], Dict[Any, Any]) -> None
         """
         Save the original SIGINT handler for later.
         """
@@ -83,7 +85,8 @@ class InterruptibleMixin:
         if self.original_handler is None:
             self.original_handler = default_int_handler
 
-    def finish(self) -> None:
+    def finish(self):
+        # type: () -> None
         """
         Restore the original SIGINT handler after finishing.
 
@@ -105,7 +108,8 @@ class InterruptibleMixin:
 
 
 class SilentBar(Bar):
-    def update(self) -> None:
+    def update(self):
+        # type: () -> None
         pass
 
 
@@ -118,24 +122,28 @@ class BlueEmojiBar(IncrementalBar):
 
 
 class DownloadProgressMixin:
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args, **kwargs):
+        # type: (List[Any], Dict[Any, Any]) -> None
         # https://github.com/python/mypy/issues/5887
         super().__init__(*args, **kwargs)  # type: ignore
-        self.message: str = (" " * (get_indentation() + 2)) + self.message
+        self.message = (" " * (get_indentation() + 2)) + self.message  # type: str
 
     @property
-    def downloaded(self) -> str:
+    def downloaded(self):
+        # type: () -> str
         return format_size(self.index)  # type: ignore
 
     @property
-    def download_speed(self) -> str:
+    def download_speed(self):
+        # type: () -> str
         # Avoid zero division errors...
         if self.avg == 0.0:  # type: ignore
             return "..."
         return format_size(1 / self.avg) + "/s"  # type: ignore
 
     @property
-    def pretty_eta(self) -> str:
+    def pretty_eta(self):
+        # type: () -> str
         if self.eta:  # type: ignore
             return f"eta {self.eta_td}"  # type: ignore
         return ""
@@ -150,7 +158,8 @@ class DownloadProgressMixin:
 
 
 class WindowsMixin:
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args, **kwargs):
+        # type: (List[Any], Dict[Any, Any]) -> None
         # The Windows terminal does not support the hide/show cursor ANSI codes
         # even with colorama. So we'll ensure that hide_cursor is False on
         # Windows.
@@ -212,12 +221,14 @@ class DownloadProgressSpinner(
     file = sys.stdout
     suffix = "%(downloaded)s %(download_speed)s"
 
-    def next_phase(self) -> str:
+    def next_phase(self):
+        # type: () -> str
         if not hasattr(self, "_phaser"):
             self._phaser = itertools.cycle(self.phases)
         return next(self._phaser)
 
-    def update(self) -> None:
+    def update(self):
+        # type: () -> None
         message = self.message % self
         phase = self.next_phase()
         suffix = self.suffix % self

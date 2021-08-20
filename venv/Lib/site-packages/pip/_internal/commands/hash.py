@@ -23,7 +23,8 @@ class HashCommand(Command):
     usage = '%prog [options] <file> ...'
     ignore_require_venv = True
 
-    def add_options(self) -> None:
+    def add_options(self):
+        # type: () -> None
         self.cmd_opts.add_option(
             '-a', '--algorithm',
             dest='algorithm',
@@ -34,7 +35,8 @@ class HashCommand(Command):
                  ', '.join(STRONG_HASHES)))
         self.parser.insert_option_group(0, self.cmd_opts)
 
-    def run(self, options: Values, args: List[str]) -> int:
+    def run(self, options, args):
+        # type: (Values, List[str]) -> int
         if not args:
             self.parser.print_usage(sys.stderr)
             return ERROR
@@ -46,7 +48,8 @@ class HashCommand(Command):
         return SUCCESS
 
 
-def _hash_of_file(path: str, algorithm: str) -> str:
+def _hash_of_file(path, algorithm):
+    # type: (str, str) -> str
     """Return the hash digest of a file."""
     with open(path, 'rb') as archive:
         hash = hashlib.new(algorithm)

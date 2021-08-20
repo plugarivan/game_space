@@ -2,16 +2,9 @@ from typing import List, Optional
 
 from .base import BaseDistribution, BaseEnvironment
 
-__all__ = [
-    "BaseDistribution",
-    "BaseEnvironment",
-    "get_default_environment",
-    "get_environment",
-    "get_wheel_distribution",
-]
 
-
-def get_default_environment() -> BaseEnvironment:
+def get_default_environment():
+    # type: () -> BaseEnvironment
     """Get the default representation for the current environment.
 
     This returns an Environment instance from the chosen backend. The default
@@ -23,7 +16,8 @@ def get_default_environment() -> BaseEnvironment:
     return Environment.default()
 
 
-def get_environment(paths: Optional[List[str]]) -> BaseEnvironment:
+def get_environment(paths):
+    # type: (Optional[List[str]]) -> BaseEnvironment
     """Get a representation of the environment specified by ``paths``.
 
     This returns an Environment instance from the chosen backend based on the
@@ -35,7 +29,8 @@ def get_environment(paths: Optional[List[str]]) -> BaseEnvironment:
     return Environment.from_paths(paths)
 
 
-def get_wheel_distribution(wheel_path: str, canonical_name: str) -> BaseDistribution:
+def get_wheel_distribution(wheel_path, canonical_name):
+    # type: (str, str) -> BaseDistribution
     """Get the representation of the specified wheel's distribution metadata.
 
     This returns a Distribution instance from the chosen backend based on

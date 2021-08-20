@@ -8,7 +8,8 @@ class PackageIndex:
     __slots__ = ['url', 'netloc', 'simple_url', 'pypi_url',
                  'file_storage_domain']
 
-    def __init__(self, url: str, file_storage_domain: str) -> None:
+    def __init__(self, url, file_storage_domain):
+        # type: (str, str) -> None
         super().__init__()
         self.url = url
         self.netloc = urllib.parse.urlsplit(url).netloc
@@ -20,7 +21,8 @@ class PackageIndex:
         # block such packages themselves
         self.file_storage_domain = file_storage_domain
 
-    def _url_for_path(self, path: str) -> str:
+    def _url_for_path(self, path):
+        # type: (str) -> str
         return urllib.parse.urljoin(self.url, path)
 
 

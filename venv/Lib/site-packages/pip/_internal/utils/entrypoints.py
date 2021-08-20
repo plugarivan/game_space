@@ -4,7 +4,8 @@ from typing import List, Optional
 from pip._internal.cli.main import main
 
 
-def _wrapper(args: Optional[List[str]] = None) -> int:
+def _wrapper(args=None):
+    # type: (Optional[List[str]]) -> int
     """Central wrapper for all old entrypoints.
 
     Historically pip has had several entrypoints defined. Because of issues

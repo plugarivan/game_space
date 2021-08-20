@@ -46,7 +46,8 @@ HTMLElement = xml.etree.ElementTree.Element
 ResponseHeaders = MutableMapping[str, str]
 
 
-def _match_vcs_scheme(url: str) -> Optional[str]:
+def _match_vcs_scheme(url):
+    # type: (str) -> Optional[str]
     """Look for VCS schemes in the URL.
 
     Returns the matched VCS scheme, or None if there's no match.
@@ -58,13 +59,15 @@ def _match_vcs_scheme(url: str) -> Optional[str]:
 
 
 class _NotHTML(Exception):
-    def __init__(self, content_type: str, request_desc: str) -> None:
+    def __init__(self, content_type, request_desc):
+        # type: (str, str) -> None
         super().__init__(content_type, request_desc)
         self.content_type = content_type
         self.request_desc = request_desc
 
 
-def _ensure_html_header(response: Response) -> None:
+def _ensure_html_header(response):
+    # type: (Response) -> None
     """Check the Content-Type header to ensure the response contains HTML.
 
     Raises `_NotHTML` if the content type is not text/html.
@@ -78,7 +81,8 @@ class _NotHTTP(Exception):
     pass
 
 
-def _ensure_html_response(url: str, session: PipSession) -> None:
+def _ensure_html_response(url, session):
+    # type: (str, PipSession) -> None
     """Send a HEAD request to the URL, and ensure the response contains HTML.
 
     Raises `_NotHTTP` if the URL is not available for a HEAD request, or
@@ -94,7 +98,8 @@ def _ensure_html_response(url: str, session: PipSession) -> None:
     _ensure_html_header(resp)
 
 
-def _get_html_response(url: str, session: PipSession) -> Response:
+def _get_html_response(url, session):
+    # type: (str, PipSession) -> Response
     """Access an HTML page with GET, and return the response.
 
     This consists of three parts:
@@ -144,7 +149,8 @@ def _get_html_response(url: str, session: PipSession) -> Response:
     return resp
 
 
-def _get_encoding_from_headers(headers: ResponseHeaders) -> Optional[str]:
+def _get_encoding_from_headers(headers):
+    # type: (ResponseHeaders) -> Optional[str]
     """Determine if we have any encoding information in our headers.
     """
     if headers and "Content-Type" in headers:
@@ -154,7 +160,8 @@ def _get_encoding_from_headers(headers: ResponseHeaders) -> Optional[str]:
     return None
 
 
-def _determine_base_url(document: HTMLElement, page_url: str) -> str:
+def _determine_base_url(document, page_url):
+    # type: (HTMLElement, str) -> str
     """Determine the HTML document's base URL.
 
     This looks for a ``<base>`` tag in the HTML document. If present, its href
@@ -173,7 +180,8 @@ def _determine_base_url(document: HTMLElement, page_url: str) -> str:
     return page_url
 
 
-def _clean_url_path_part(part: str) -> str:
+def _clean_url_path_part(part):
+    # type: (str) -> str
     """
     Clean a "part" of a URL path (i.e. after splitting on "@" characters).
     """
@@ -181,7 +189,8 @@ def _clean_url_path_part(part: str) -> str:
     return urllib.parse.quote(urllib.parse.unquote(part))
 
 
-def _clean_file_url_path(part: str) -> str:
+def _clean_file_url_path(part):
+    # type: (str) -> str
     """
     Clean the first part of a URL path that corresponds to a local
     filesystem path (i.e. the first part after splitting on "@" characters).
@@ -198,7 +207,8 @@ def _clean_file_url_path(part: str) -> str:
 _reserved_chars_re = re.compile('(@|%2F)', re.IGNORECASE)
 
 
-def _clean_url_path(path: str, is_local_path: bool) -> str:
+def _clean_url_path(path, is_local_path):
+    # type: (str, bool) -> str
     """
     Clean the path portion of a URL.
     """
@@ -220,7 +230,8 @@ def _clean_url_path(path: str, is_local_path: bool) -> str:
     return ''.join(cleaned_parts)
 
 
-def _clean_link(url: str) -> str:
+def _clean_link(url):
+    # type: (str) -> str
     """
     Make sure a link is fully quoted.
     For example, if ' ' occurs in the URL, it will be replaced with "%20",
@@ -236,10 +247,11 @@ def _clean_link(url: str) -> str:
 
 
 def _create_link_from_element(
-    anchor: HTMLElement,
-    page_url: str,
-    base_url: str,
-) -> Optional[Link]:
+    anchor,    # type: HTMLElement
+    page_url,  # type: str
+    base_url,  # type: str
+):
+    # type: (...) -> Optional[Link]
     """
     Convert an anchor element in a simple repository page to a Link.
     """
@@ -266,21 +278,25 @@ def _create_link_from_element(
 
 
 class CacheablePageContent:
-    def __init__(self, page: "HTMLPage") -> None:
+    def __init__(self, page):
+        # type: (HTMLPage) -> None
         assert page.cache_link_parsing
         self.page = page
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other):
+        # type: (object) -> bool
         return (isinstance(other, type(self)) and
                 self.page.url == other.page.url)
 
-    def __hash__(self) -> int:
+    def __hash__(self):
+        # type: () -> int
         return hash(self.page.url)
 
 
 def with_cached_html_pages(
-    fn: Callable[["HTMLPage"], Iterable[Link]],
-) -> Callable[["HTMLPage"], List[Link]]:
+    fn,    # type: Callable[[HTMLPage], Iterable[Link]]
+):
+    # type: (...) -> Callable[[HTMLPage], List[Link]]
     """
     Given a function that parses an Iterable[Link] from an HTMLPage, cache the
     function's result (keyed by CacheablePageContent), unless the HTMLPage
@@ -288,11 +304,13 @@ def with_cached_html_pages(
     """
 
     @functools.lru_cache(maxsize=None)
-    def wrapper(cacheable_page: CacheablePageContent) -> List[Link]:
+    def wrapper(cacheable_page):
+        # type: (CacheablePageContent) -> List[Link]
         return list(fn(cacheable_page.page))
 
     @functools.wraps(fn)
-    def wrapper_wrapper(page: "HTMLPage") -> List[Link]:
+    def wrapper_wrapper(page):
+        # type: (HTMLPage) -> List[Link]
         if page.cache_link_parsing:
             return wrapper(CacheablePageContent(page))
         return list(fn(page))
@@ -301,7 +319,8 @@ def with_cached_html_pages(
 
 
 @with_cached_html_pages
-def parse_links(page: "HTMLPage") -> Iterable[Link]:
+def parse_links(page):
+    # type: (HTMLPage) -> Iterable[Link]
     """
     Parse an HTML document, and yield its anchor elements as Link objects.
     """
@@ -329,11 +348,12 @@ class HTMLPage:
 
     def __init__(
         self,
-        content: bytes,
-        encoding: Optional[str],
-        url: str,
-        cache_link_parsing: bool = True,
-    ) -> None:
+        content,                  # type: bytes
+        encoding,                 # type: Optional[str]
+        url,                      # type: str
+        cache_link_parsing=True,  # type: bool
+    ):
+        # type: (...) -> None
         """
         :param encoding: the encoding to decode the given content.
         :param url: the URL from which the HTML was downloaded.
@@ -346,21 +366,24 @@ class HTMLPage:
         self.url = url
         self.cache_link_parsing = cache_link_parsing
 
-    def __str__(self) -> str:
+    def __str__(self):
+        # type: () -> str
         return redact_auth_from_url(self.url)
 
 
 def _handle_get_page_fail(
-    link: Link,
-    reason: Union[str, Exception],
-    meth: Optional[Callable[..., None]] = None
-) -> None:
+    link,  # type: Link
+    reason,  # type: Union[str, Exception]
+    meth=None  # type: Optional[Callable[..., None]]
+):
+    # type: (...) -> None
     if meth is None:
         meth = logger.debug
     meth("Could not fetch URL %s: %s - skipping", link, reason)
 
 
-def _make_html_page(response: Response, cache_link_parsing: bool = True) -> HTMLPage:
+def _make_html_page(response, cache_link_parsing=True):
+    # type: (Response, bool) -> HTMLPage
     encoding = _get_encoding_from_headers(response.headers)
     return HTMLPage(
         response.content,
@@ -369,9 +392,8 @@ def _make_html_page(response: Response, cache_link_parsing: bool = True) -> HTML
         cache_link_parsing=cache_link_parsing)
 
 
-def _get_html_page(
-    link: Link, session: Optional[PipSession] = None
-) -> Optional["HTMLPage"]:
+def _get_html_page(link, session=None):
+    # type: (Link, Optional[PipSession]) -> Optional[HTMLPage]
     if session is None:
         raise TypeError(
             "_get_html_page() missing 1 required keyword argument: 'session'"
@@ -443,18 +465,16 @@ class LinkCollector:
 
     def __init__(
         self,
-        session: PipSession,
-        search_scope: SearchScope,
-    ) -> None:
+        session,       # type: PipSession
+        search_scope,  # type: SearchScope
+    ):
+        # type: (...) -> None
         self.search_scope = search_scope
         self.session = session
 
     @classmethod
-    def create(
-        cls, session: PipSession,
-        options: Values,
-        suppress_no_index: bool = False
-    ) -> "LinkCollector":
+    def create(cls, session, options, suppress_no_index=False):
+        # type: (PipSession, Values, bool) -> LinkCollector
         """
         :param session: The Session to use to make requests.
         :param suppress_no_index: Whether to ignore the --no-index option
@@ -480,10 +500,12 @@ class LinkCollector:
         return link_collector
 
     @property
-    def find_links(self) -> List[str]:
+    def find_links(self):
+        # type: () -> List[str]
         return self.search_scope.find_links
 
-    def fetch_page(self, location: Link) -> Optional[HTMLPage]:
+    def fetch_page(self, location):
+        # type: (Link) -> Optional[HTMLPage]
         """
         Fetch an HTML page containing package links.
         """

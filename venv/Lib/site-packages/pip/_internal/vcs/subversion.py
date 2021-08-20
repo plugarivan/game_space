@@ -7,7 +7,6 @@ from pip._internal.utils.misc import (
     HiddenText,
     display_path,
     is_console_interactive,
-    is_installable_dir,
     split_auth_from_netloc,
 )
 from pip._internal.utils.subprocess import CommandArgs, make_command
@@ -112,17 +111,18 @@ class Subversion(VersionControl):
     @classmethod
     def get_remote_url(cls, location):
         # type: (str) -> str
-        # In cases where the source is in a subdirectory, we have to look up in
-        # the location until we find a valid project root.
+        # In cases where the source is in a subdirectory, not alongside
+        # setup.py we have to look up in the location until we find a real
+        # setup.py
         orig_location = location
-        while not is_installable_dir(location):
+        while not os.path.exists(os.path.join(location, 'setup.py')):
             last_location = location
             location = os.path.dirname(location)
             if location == last_location:
                 # We've traversed up to the root of the filesystem without
-                # finding a Python project.
+                # finding setup.py
                 logger.warning(
-                    "Could not find Python project for directory %s (tried all "
+                    "Could not find setup.py for directory %s (tried all "
                     "parent directories)",
                     orig_location,
                 )

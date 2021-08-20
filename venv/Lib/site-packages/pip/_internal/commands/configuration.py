@@ -49,7 +49,8 @@ class ConfigurationCommand(Command):
         %prog [<file-option>] debug
     """
 
-    def add_options(self) -> None:
+    def add_options(self):
+        # type: () -> None
         self.cmd_opts.add_option(
             '--editor',
             dest='editor',
@@ -87,7 +88,8 @@ class ConfigurationCommand(Command):
 
         self.parser.insert_option_group(0, self.cmd_opts)
 
-    def run(self, options: Values, args: List[str]) -> int:
+    def run(self, options, args):
+        # type: (Values, List[str]) -> int
         handlers = {
             "list": self.list_values,
             "edit": self.open_in_editor,
@@ -132,7 +134,8 @@ class ConfigurationCommand(Command):
 
         return SUCCESS
 
-    def _determine_file(self, options: Values, need_value: bool) -> Optional[Kind]:
+    def _determine_file(self, options, need_value):
+        # type: (Values, bool) -> Optional[Kind]
         file_options = [key for key, value in (
             (kinds.USER, options.user_file),
             (kinds.GLOBAL, options.global_file),
@@ -158,31 +161,36 @@ class ConfigurationCommand(Command):
             "(--user, --site, --global) to perform."
         )
 
-    def list_values(self, options: Values, args: List[str]) -> None:
+    def list_values(self, options, args):
+        # type: (Values, List[str]) -> None
         self._get_n_args(args, "list", n=0)
 
         for key, value in sorted(self.configuration.items()):
             write_output("%s=%r", key, value)
 
-    def get_name(self, options: Values, args: List[str]) -> None:
+    def get_name(self, options, args):
+        # type: (Values, List[str]) -> None
         key = self._get_n_args(args, "get [name]", n=1)
         value = self.configuration.get_value(key)
 
         write_output("%s", value)
 
-    def set_name_value(self, options: Values, args: List[str]) -> None:
+    def set_name_value(self, options, args):
+        # type: (Values, List[str]) -> None
         key, value = self._get_n_args(args, "set [name] [value]", n=2)
         self.configuration.set_value(key, value)
 
         self._save_configuration()
 
-    def unset_name(self, options: Values, args: List[str]) -> None:
+    def unset_name(self, options, args):
+        # type: (Values, List[str]) -> None
         key = self._get_n_args(args, "unset [name]", n=1)
         self.configuration.unset_value(key)
 
         self._save_configuration()
 
-    def list_config_values(self, options: Values, args: List[str]) -> None:
+    def list_config_values(self, options, args):
+        # type: (Values, List[str]) -> None
         """List config key-value pairs across different config files"""
         self._get_n_args(args, "debug", n=0)
 
@@ -199,14 +207,16 @@ class ConfigurationCommand(Command):
                     if file_exists:
                         self.print_config_file_values(variant)
 
-    def print_config_file_values(self, variant: Kind) -> None:
+    def print_config_file_values(self, variant):
+        # type: (Kind) -> None
         """Get key-value pairs from the file of a variant"""
         for name, value in self.configuration.\
                 get_values_in_config(variant).items():
             with indent_log():
                 write_output("%s: %s", name, value)
 
-    def print_env_var_values(self) -> None:
+    def print_env_var_values(self):
+        # type: () -> None
         """Get key-values pairs present as environment variables"""
         write_output("%s:", 'env_var')
         with indent_log():
@@ -214,7 +224,8 @@ class ConfigurationCommand(Command):
                 env_var = f'PIP_{key.upper()}'
                 write_output("%s=%r", env_var, value)
 
-    def open_in_editor(self, options: Values, args: List[str]) -> None:
+    def open_in_editor(self, options, args):
+        # type: (Values, List[str]) -> None
         editor = self._determine_editor(options)
 
         fname = self.configuration.get_file_to_edit()
@@ -229,7 +240,8 @@ class ConfigurationCommand(Command):
                 .format(e.returncode)
             )
 
-    def _get_n_args(self, args: List[str], example: str, n: int) -> Any:
+    def _get_n_args(self, args, example, n):
+        # type: (List[str], str, int) -> Any
         """Helper to make sure the command got the right number of arguments
         """
         if len(args) != n:
@@ -244,7 +256,8 @@ class ConfigurationCommand(Command):
         else:
             return args
 
-    def _save_configuration(self) -> None:
+    def _save_configuration(self):
+        # type: () -> None
         # We successfully ran a modifying command. Need to save the
         # configuration.
         try:
@@ -255,7 +268,8 @@ class ConfigurationCommand(Command):
             )
             raise PipError("Internal Error.")
 
-    def _determine_editor(self, options: Values) -> str:
+    def _determine_editor(self, options):
+        # type: (Values) -> str
         if options.editor is not None:
             return options.editor
         elif "VISUAL" in os.environ:

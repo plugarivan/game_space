@@ -26,11 +26,12 @@ class TargetPython:
 
     def __init__(
         self,
-        platforms: Optional[List[str]] = None,
-        py_version_info: Optional[Tuple[int, ...]] = None,
-        abis: Optional[List[str]] = None,
-        implementation: Optional[str] = None,
-    ) -> None:
+        platforms=None,  # type: Optional[List[str]]
+        py_version_info=None,  # type: Optional[Tuple[int, ...]]
+        abis=None,  # type: Optional[List[str]]
+        implementation=None,  # type: Optional[str]
+    ):
+        # type: (...) -> None
         """
         :param platforms: A list of strings or None. If None, searches for
             packages that are supported by the current system. Otherwise, will
@@ -62,9 +63,10 @@ class TargetPython:
         self.py_version_info = py_version_info
 
         # This is used to cache the return value of get_tags().
-        self._valid_tags: Optional[List[Tag]] = None
+        self._valid_tags = None  # type: Optional[List[Tag]]
 
-    def format_given(self) -> str:
+    def format_given(self):
+        # type: () -> str
         """
         Format the given, non-None attributes for display.
         """
@@ -85,7 +87,8 @@ class TargetPython:
             if value is not None
         )
 
-    def get_tags(self) -> List[Tag]:
+    def get_tags(self):
+        # type: () -> List[Tag]
         """
         Return the supported PEP 425 tags to check wheel candidates against.
 

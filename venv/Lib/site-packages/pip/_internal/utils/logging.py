@@ -4,10 +4,9 @@ import logging
 import logging.handlers
 import os
 import sys
-from logging import Filter
+from logging import Filter, getLogger
 from typing import IO, Any, Callable, Iterator, Optional, TextIO, Type, cast
 
-from pip._internal.utils._log import VERBOSE, getLogger
 from pip._internal.utils.compat import WINDOWS
 from pip._internal.utils.deprecation import DEPRECATION_MSG_PREFIX
 from pip._internal.utils.misc import ensure_dir
@@ -273,20 +272,18 @@ def setup_logging(verbosity, no_color, user_log_file):
     """
 
     # Determine the level to be logging at.
-    if verbosity >= 2:
-        level_number = logging.DEBUG
-    elif verbosity == 1:
-        level_number = VERBOSE
+    if verbosity >= 1:
+        level = "DEBUG"
     elif verbosity == -1:
-        level_number = logging.WARNING
+        level = "WARNING"
     elif verbosity == -2:
-        level_number = logging.ERROR
+        level = "ERROR"
     elif verbosity <= -3:
-        level_number = logging.CRITICAL
+        level = "CRITICAL"
     else:
-        level_number = logging.INFO
+        level = "INFO"
 
-    level = logging.getLevelName(level_number)
+    level_number = getattr(logging, level)
 
     # The "root" logger should match the "console" level *unless* we also need
     # to log to a user log file.
@@ -375,7 +372,6 @@ def setup_logging(verbosity, no_color, user_log_file):
                     "level": "DEBUG",
                     "class": handler_classes["file"],
                     "filename": additional_log_file,
-                    "encoding": "utf-8",
                     "delay": True,
                     "formatter": "indent_with_timestamp",
                 },

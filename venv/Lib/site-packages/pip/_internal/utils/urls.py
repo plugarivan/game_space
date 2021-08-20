@@ -1,10 +1,8 @@
 import os
-import string
+import sys
 import urllib.parse
 import urllib.request
 from typing import Optional
-
-from .compat import WINDOWS
 
 
 def get_url_scheme(url):
@@ -39,7 +37,7 @@ def url_to_path(url):
     if not netloc or netloc == "localhost":
         # According to RFC 8089, same as empty authority.
         netloc = ""
-    elif WINDOWS:
+    elif sys.platform == "win32":
         # If we have a UNC path, prepend UNC share notation.
         netloc = "\\\\" + netloc
     else:
@@ -48,18 +46,4 @@ def url_to_path(url):
         )
 
     path = urllib.request.url2pathname(netloc + path)
-
-    # On Windows, urlsplit parses the path as something like "/C:/Users/foo".
-    # This creates issues for path-related functions like io.open(), so we try
-    # to detect and strip the leading slash.
-    if (
-        WINDOWS
-        and not netloc  # Not UNC.
-        and len(path) >= 3
-        and path[0] == "/"  # Leading slash to strip.
-        and path[1] in string.ascii_letters  # Drive letter.
-        and path[2:4] in (":", ":/")  # Colon + end of string, or colon + absolute path.
-    ):
-        path = path[1:]
-
     return path

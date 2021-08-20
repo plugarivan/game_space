@@ -1,119 +1,90 @@
-import email.message
-import logging
 import zipfile
-from typing import (
-    TYPE_CHECKING,
-    Collection,
-    Iterable,
-    Iterator,
-    List,
-    NamedTuple,
-    Optional,
-)
+from typing import Iterator, List, Optional
 
 from pip._vendor import pkg_resources
-from pip._vendor.packaging.requirements import Requirement
 from pip._vendor.packaging.utils import canonicalize_name
 from pip._vendor.packaging.version import parse as parse_version
 
 from pip._internal.utils import misc  # TODO: Move definition here.
-from pip._internal.utils.packaging import get_installer, get_metadata
+from pip._internal.utils.packaging import get_installer
 from pip._internal.utils.wheel import pkg_resources_distribution_for_wheel
 
-from .base import BaseDistribution, BaseEntryPoint, BaseEnvironment, DistributionVersion
-
-if TYPE_CHECKING:
-    from pip._vendor.packaging.utils import NormalizedName
-
-logger = logging.getLogger(__name__)
-
-
-class EntryPoint(NamedTuple):
-    name: str
-    value: str
-    group: str
+from .base import BaseDistribution, BaseEnvironment, DistributionVersion
 
 
 class Distribution(BaseDistribution):
-    def __init__(self, dist: pkg_resources.Distribution) -> None:
+    def __init__(self, dist):
+        # type: (pkg_resources.Distribution) -> None
         self._dist = dist
 
     @classmethod
-    def from_wheel(cls, path: str, name: str) -> "Distribution":
+    def from_wheel(cls, path, name):
+        # type: (str, str) -> Distribution
         with zipfile.ZipFile(path, allowZip64=True) as zf:
             dist = pkg_resources_distribution_for_wheel(zf, name, path)
         return cls(dist)
 
     @property
-    def location(self) -> Optional[str]:
+    def location(self):
+        # type: () -> Optional[str]
         return self._dist.location
 
     @property
-    def info_directory(self) -> Optional[str]:
-        return self._dist.egg_info
+    def metadata_version(self):
+        # type: () -> Optional[str]
+        for line in self._dist.get_metadata_lines(self._dist.PKG_INFO):
+            if line.lower().startswith("metadata-version:"):
+                return line.split(":", 1)[-1].strip()
+        return None
 
     @property
-    def canonical_name(self) -> "NormalizedName":
+    def canonical_name(self):
+        # type: () -> str
         return canonicalize_name(self._dist.project_name)
 
     @property
-    def version(self) -> DistributionVersion:
+    def version(self):
+        # type: () -> DistributionVersion
         return parse_version(self._dist.version)
 
     @property
-    def installer(self) -> str:
+    def installer(self):
+        # type: () -> str
         return get_installer(self._dist)
 
     @property
-    def editable(self) -> bool:
+    def editable(self):
+        # type: () -> bool
         return misc.dist_is_editable(self._dist)
 
     @property
-    def local(self) -> bool:
+    def local(self):
+        # type: () -> bool
         return misc.dist_is_local(self._dist)
 
     @property
-    def in_usersite(self) -> bool:
+    def in_usersite(self):
+        # type: () -> bool
         return misc.dist_in_usersite(self._dist)
-
-    @property
-    def in_site_packages(self) -> bool:
-        return misc.dist_in_site_packages(self._dist)
-
-    def read_text(self, name: str) -> str:
-        if not self._dist.has_metadata(name):
-            raise FileNotFoundError(name)
-        return self._dist.get_metadata(name)
-
-    def iter_entry_points(self) -> Iterable[BaseEntryPoint]:
-        for group, entries in self._dist.get_entry_map().items():
-            for name, entry_point in entries.items():
-                name, _, value = str(entry_point).partition("=")
-                yield EntryPoint(name=name.strip(), value=value.strip(), group=group)
-
-    @property
-    def metadata(self) -> email.message.Message:
-        return get_metadata(self._dist)
-
-    def iter_dependencies(self, extras: Collection[str] = ()) -> Iterable[Requirement]:
-        if extras:  # pkg_resources raises on invalid extras, so we sanitize.
-            extras = frozenset(extras).intersection(self._dist.extras)
-        return self._dist.requires(extras)
 
 
 class Environment(BaseEnvironment):
-    def __init__(self, ws: pkg_resources.WorkingSet) -> None:
+    def __init__(self, ws):
+        # type: (pkg_resources.WorkingSet) -> None
         self._ws = ws
 
     @classmethod
-    def default(cls) -> BaseEnvironment:
+    def default(cls):
+        # type: () -> BaseEnvironment
         return cls(pkg_resources.working_set)
 
     @classmethod
-    def from_paths(cls, paths: Optional[List[str]]) -> BaseEnvironment:
+    def from_paths(cls, paths):
+        # type: (Optional[List[str]]) -> BaseEnvironment
         return cls(pkg_resources.WorkingSet(paths))
 
-    def _search_distribution(self, name: str) -> Optional[BaseDistribution]:
+    def _search_distribution(self, name):
+        # type: (str) -> Optional[BaseDistribution]
         """Find a distribution matching the ``name`` in the environment.
 
         This searches from *all* distributions available in the environment, to
@@ -125,7 +96,8 @@ class Environment(BaseEnvironment):
                 return dist
         return None
 
-    def get_distribution(self, name: str) -> Optional[BaseDistribution]:
+    def get_distribution(self, name):
+        # type: (str) -> Optional[BaseDistribution]
 
         # Search the distribution by looking through the working set.
         dist = self._search_distribution(name)
@@ -148,6 +120,7 @@ class Environment(BaseEnvironment):
             return None
         return self._search_distribution(name)
 
-    def _iter_distributions(self) -> Iterator[BaseDistribution]:
+    def _iter_distributions(self):
+        # type: () -> Iterator[BaseDistribution]
         for dist in self._ws:
             yield Distribution(dist)

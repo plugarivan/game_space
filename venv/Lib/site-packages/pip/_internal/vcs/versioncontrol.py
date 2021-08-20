@@ -27,7 +27,6 @@ from pip._internal.utils.misc import (
     display_path,
     hide_url,
     hide_value,
-    is_installable_dir,
     rmtree,
 )
 from pip._internal.utils.subprocess import CommandArgs, call_subprocess, make_command
@@ -69,23 +68,23 @@ def make_vcs_requirement_url(repo_url, rev, project_name, subdir=None):
     return req
 
 
-def find_path_to_project_root_from_repo_root(location, repo_root):
+def find_path_to_setup_from_repo_root(location, repo_root):
     # type: (str, str) -> Optional[str]
     """
-    Find the the Python project's root by searching up the filesystem from
-    `location`. Return the path to project root relative to `repo_root`.
-    Return None if the project root is `repo_root`, or cannot be found.
+    Find the path to `setup.py` by searching up the filesystem from `location`.
+    Return the path to `setup.py` relative to `repo_root`.
+    Return None if `setup.py` is in `repo_root` or cannot be found.
     """
-    # find project root.
+    # find setup.py
     orig_location = location
-    while not is_installable_dir(location):
+    while not os.path.exists(os.path.join(location, 'setup.py')):
         last_location = location
         location = os.path.dirname(location)
         if location == last_location:
             # We've traversed up to the root of the filesystem without
-            # finding a Python project.
+            # finding setup.py
             logger.warning(
-                "Could not find a Python project for directory %s (tried all "
+                "Could not find setup.py for directory %s (tried all "
                 "parent directories)",
                 orig_location,
             )
@@ -99,12 +98,6 @@ def find_path_to_project_root_from_repo_root(location, repo_root):
 
 class RemoteNotFoundError(Exception):
     pass
-
-
-class RemoteNotValidError(Exception):
-    def __init__(self, url: str):
-        super().__init__(url)
-        self.url = url
 
 
 class RevOptions:
@@ -297,8 +290,8 @@ class VersionControl:
     def get_subdirectory(cls, location):
         # type: (str) -> Optional[str]
         """
-        Return the path to Python project root, relative to the repo root.
-        Return None if the project root is in the repo root.
+        Return the path to setup.py, relative to the repo root.
+        Return None if setup.py is in the repo root.
         """
         return None
 

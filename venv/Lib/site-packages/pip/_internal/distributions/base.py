@@ -23,16 +23,17 @@ class AbstractDistribution(metaclass=abc.ABCMeta):
        above metadata.
     """
 
-    def __init__(self, req: InstallRequirement) -> None:
+    def __init__(self, req):
+        # type: (InstallRequirement) -> None
         super().__init__()
         self.req = req
 
     @abc.abstractmethod
-    def get_pkg_resources_distribution(self) -> Optional[Distribution]:
+    def get_pkg_resources_distribution(self):
+        # type: () -> Optional[Distribution]
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def prepare_distribution_metadata(
-        self, finder: PackageFinder, build_isolation: bool
-    ) -> None:
+    def prepare_distribution_metadata(self, finder, build_isolation):
+        # type: (PackageFinder, bool) -> None
         raise NotImplementedError()
