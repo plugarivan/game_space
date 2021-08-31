@@ -18,7 +18,4 @@ class Ino(pygame.sprite.Sprite):
         """вывод пришельца на экран"""
         self.screen.blit(self.image, self.rect)
 
-    def update(self):
-        """перемещает армию пришельцев на экране"""
-        self.y += 0.1
-        self.rect.y = self.y
+

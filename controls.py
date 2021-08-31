@@ -47,16 +47,13 @@ def create_army(screen, inos):
     space_ino_x = 700 - 2 * ino_width
     number_ino_x = int(space_ino_x / ino_width)
     space_ino_y = 800 - 200 - 2 * ino_height
-    number_ino_y = int(space_ino_y / (ino_height))
+    number_ino_y = int(space_ino_y / (2 * ino_height))
 
     for row_number in range(number_ino_y):
         for ino_number in range(number_ino_x):
             ino = Ino(screen)
             ino.x = ino_width + (ino_width * ino_number)
             ino.rect.x = ino.x
-            ino.rect.y = ino.rect.height + ino.rect.height * row_number
+            ino.rect.y = ino.rect.height + 2 * ino.rect.height * row_number
             inos.add(ino)
 
-def update_inos(inos):
-    """обновляет позиции пришельцев"""
-    inos.update()
