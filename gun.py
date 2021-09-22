@@ -27,3 +27,7 @@ class Gun():
             self.center -= 1.5
 
         self.rect.centerx = self.center
+
+    def create_gun(self):
+        """размещает пушку по центру внизу"""
+        self.center = self.screen_rect.centerx
