@@ -15,10 +15,10 @@ class Ino(pygame.sprite.Sprite):
         self.y = float(self.rect.y)
 
     def draw(self):
-        """выводи пришельца на экран"""
+        """вывод пришельца на экран"""
         self.screen.blit(self.image, self.rect)
 
     def update(self):
-        """перемещает пришельцев"""
+        """перемещение пришельцев"""
         self.y += 0.1
         self.rect.y = self.y
